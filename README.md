@@ -1,2 +1,2 @@
-# enhencement_JPEG
+# enhancement_JPEG
 JPEG
