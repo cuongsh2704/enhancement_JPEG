@@ -74,5 +74,4 @@ def AFC2(img, size):
     return img
 img = cv2.imread("image.png")
 edge = cv2.Canny(img, 256, 256)
-ShowImg(edge)
 print(edge)
