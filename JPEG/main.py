@@ -35,8 +35,8 @@ def Median(arr):
 def flatImg(img):
     (h, w, d) = img.shape
     img_flat = np.zeros((h, w), dtype= int)
-    for i in range(0, h + 1):
-        for j in range(0, w + 1):
+    for i in range(0, h):
+        for j in range(0, w):
             img_flat[i][j] = img[i][j][1]
     return img_flat
 def  MSM_filter(img, x, y, size):  #multi_stage_Median filter
@@ -108,18 +108,39 @@ def AFC1(img, size): #Adaptive Filter Combination, size : size of window
                 filterD(img, i, j, 3)
     return img
 def AFC2(img, size):
+    img_classify = Classify(img)
+    (H, W, D) = img.shape
+    size = int(size / 2)
+    for i in range(size, H - size):
+        for j in range(size, W - size):
+            if (img_classify[i][j] != 255):
+                filterD(img, i, j, 3)
+    for i in range(size, H - size):
+        for j in range(size, W - size):
+            if (img_classify[i][j] != 255):
+                MSM_filter(img, i, j, 5)
+    for i in range(size, H - size):
+        for j in range(size, W - size):
+            filterD(img, i, j, 3)
     return img
-def Evaluate(img):
+def Evaluate(img, img_fil):
+    im = flatImg(img)
+    im_fil = flatImg(img_fil)
 
     (H, W, D) = img.shape
-    Med = np.mean(img)
     for i in range(0, H):
         for j in range(0, W):
-            img[i][j][1] -= Med
-            img[i][j][2] -= Med
-            img[i][j][0] -= Med
-    Med = np.mean(img)
+            im[i][j] -= im_fil[i][j]
+            im[i][j] = np.abs(im[i][j])
+
+    Med = np.mean(im)
     return Med
-img = cv2.imread("image.png")
-im = AFC1(img,5)
-print(Evaluate(im), Evaluate(img))
+
+img = cv2.imread("anh.png")
+(H, W, D) = img.shape
+cv2.imshow("or",img)
+for i in (5, H - 5):
+    for j in (5, W - 5):
+        MSM_filter(img, i ,j ,5)
+cv2.imshow("test", img)
+cv2.waitKey(0)
