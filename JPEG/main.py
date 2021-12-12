@@ -53,42 +53,54 @@ def  MSM_filter(img, x, y, size):  #multi_stage_Median filter
     Med = int(Med)
     return Med
 
-def NZC(img, x, y): # default window size = 5 , n = 12
-    nzc = 0;
-    Ti =[]
+def thresholding(img_window, img_zc): #LSD value n = 12
+    n = 12
+
+    med = np.mean(img_window);
+
+    for i in range(0, 5):
+        for j in range(0, 5):
+            img_zc[i][j] = img_window[i][j] - med
+            if (np.abs(img_zc[i][j]) < n) :
+                img_window[i][j] = med;
+                img_zc[i][j] = 0;
+
+
+
+def RNZC(img, x, y): #size = 5 ,
+    img_window = np.zeros((5, 5));
+    img_zc = np.zeros((5, 5));
     for i in range(x - 2, x + 2):
         for j in range(y - 2, y + 2):
-         Ti.append(img[i][j][1])
+            img_window[i - x + 2][j - y + 2] = img[i][j][0];
+            img_zc[i - x + 2][j - y + 2] = img_window[i - x + 2][j - y + 2]
 
-    Ti = np.mean(Ti)
+    #thresholding:
+    thresholding(img_window, img_zc)
+    thresholding(img_window, img_zc)
+    zc = 0
+    for i in range(0, 5):
+        for j in range(1, 5):
+            if (img_zc[i][j] * img_zc[i][j - 1] < 0):
+                zc += 1
+            if (img_zc[j][i] * img_zc[j - 1][i] < 0):
+                zc +=1
 
-    for i in range(x - 2, x + 2):
-        for j in range(y - 2, y + 2):
-         img[i][i][1] -= Ti
-    return img
+    for i in range(1, 5):
+        if (img_zc[i][i] * img_zc[i - 1][i - 1] < 0):
+            zc += 1
+        if (img_zc[i][4 - i] * img_zc[i - 1][4 - i] < 0):
+            zc += 1
 
-def RNZC(img, x, y):
-    img = NZC(img, x, y)
-    W1 = 0
-    W2 = 0
-    W3 = 0
-    W4 = 0
-    for i in range(-2, 2):
-        if (img[x + i][y][1] * img[x + i + 1][y][1] < 0):
-            W1 += 1
-        if (img[x][y + i][1] * img[x][y + i + 1][1] < 0):
-            W2 += 1
-        if (img[x + i][y + i][1] * img[x + i + 1][y + i + 1][1] < 0):
-            W3 += 1
-        if (img[x + i][y - i][1] * img[x + i + 1][y - i - 1][1] < 0):
-            W4 += 1
-    return W1 + W2 + W3 + W4
+    return zc
 def Classify(img): #classify pixel
     (H, W, D) = img.shape
+    b = 12
     img_classify = cv2.Canny(img, 100, 100)
-    for i in range(0, H):
-        for j in range(0, W):
-            rnzc = img_classify[i][j]
+    for i in range(0, H - 2):
+        for j in range(0, W - 2):
+            if (img_classify[i][j] != 255 & RNZC(img, i, j) > b):
+                img_classify[i][j] = 128
     return img_classify
 def AFC1(img, size): #Adaptive Filter Combination, size : size of window
     img_classify = Classify(img)
@@ -96,26 +108,31 @@ def AFC1(img, size): #Adaptive Filter Combination, size : size of window
     size = int(size / 2)
     for i in range(size, H - size):
         for j in range(size, W - size):
-            if (img_classify[i][j] != 255):
-                point = filterD(img, i, j, 5)
-                img[i][j][0] = img[i][j][1] = img[i][j][2] = point
-    return img
+            if (img_classify[i][j] == 255):
+                for k in range(0, 3):
+                    img[i][j][k] = median_filter(img, i, j, size)
+            if (img_classify[i][j] == 0):
+                for k in range(0, 3):
+                    img[i][j][k] = filterD(img, i, j, 3);
 def AFC2(img, size):
     img_classify = Classify(img)
     (H, W, D) = img.shape
     size = int(size / 2)
     for i in range(size, H - size):
         for j in range(size, W - size):
-            if (img_classify[i][j] != 255):
-                img = filterD(img, i, j, 3)
+            if (img_classify[i][j] == 0):
+                for k in range(0, 3):
+                    img[i][j][k] = filterD(img, i, j, 3);
     for i in range(size, H - size):
         for j in range(size, W - size):
-            if (img_classify[i][j] != 255):
-                img = MSM_filter(img, i, j, 5)
+            if (img_classify[i][j] == 255):
+                for k in range(0, 3):
+                    img[i][j][k] = MSM_filter(img, i, j, 5);
     for i in range(size, H - size):
         for j in range(size, W - size):
-            img = filterD(img, i, j, 3)
-    return img
+            for k in range(0, 3):
+                img[i][j][k] = filterD(img, i, j, 3);
+
 def Evaluate(img, img_fil):
     (H, W, D) = img.shape
     med = []
@@ -127,11 +144,12 @@ def Evaluate(img, img_fil):
     return Med_eval
 
 img = cv2.imread("image.png")
-img_jpeg = cv2.imread("image.jpg")
-img2 = img_jpeg
-print(Evaluate(img, img2))
-#img_fil = AFC1(img_jpeg, 5)
-print(Evaluate(img, img2))
+img_jpeg = cv2.imread("anh.png")
+AFC2(img_jpeg, 5)
+
+cv2.imshow("filter", img_jpeg)
+cv2.waitKey(0)
+
 
 
 
